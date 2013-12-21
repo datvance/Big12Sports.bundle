@@ -1,0 +1,79 @@
+from urlparse import urlparse, parse_qs
+
+DEBUG = True
+JSON_URL = "http://m.big12sports.com/XML/mobile/encryptvideopath.dbml?&db_oem_id=10410&path=%s&type=vod"
+
+
+####################################################################################################
+def NormalizeURL(url):
+
+    return url
+
+
+####################################################################################################
+def MetadataObjectForURL(url):
+
+    log('MetadataObjectForURL('+url+')')
+
+    media_details = GetMediaDetails(url, False)
+
+    return VideoClipObject(
+                title=media_details['title'],
+                summary=media_details['summary'],
+                thumb=media_details['thumb']
+        )
+
+
+####################################################################################################
+def MediaObjectsForURL(url):
+
+    log('MediaObjectsForURL('+url+')')
+
+    return [
+            MediaObject(
+                    container=Container.MP4,
+                    video_codec=VideoCodec.H264,
+                    audio_codec=AudioCodec.AAC,
+                    audio_channels=2,
+                    parts=[PartObject(key=Callback(PlayVideo, url=url))]
+            )
+    ]
+
+
+
+####################################################################################################
+def GetMediaDetails(url, src=False):
+
+    details = {}
+
+    if src:
+        parts = urlparse(url)
+        q = parse_qs(parts[4])
+        video_id = q["ID"][0]
+        json = JSON.ObjectFromURL(JSON_URL % video_id)
+
+        details["src"] = json["path"]
+
+    html = HTML.ElementFromURL(url)
+    img = html.xpath("//div[@class='poster']/img")[0]
+    details["title"] = img.get("alt")
+    details["thumb"] = img.get("src")
+    details["summary"] = details["title"]
+
+    log(str(details))
+    return details
+
+
+####################################################################################################
+def PlayVideo(url):
+
+    media_details = GetMediaDetails(url, True)
+    log('Play: %s' % media_details['src'])
+
+    return Redirect(media_details['src'])
+
+
+####################################################################################################
+def log(str):
+    if DEBUG:
+        Log.Debug(str)
