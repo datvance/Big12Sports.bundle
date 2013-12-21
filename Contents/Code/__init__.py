@@ -1,4 +1,4 @@
-DEBUG = True
+DEBUG = False
 
 PREFIX = '/video/big12sports'
 NAME = "Big 12 Sports"
@@ -10,8 +10,6 @@ ROOT = "http://m.big12sports.com"
 URL = ROOT + "/mobile/Video.dbml?db_oem_id=10410"
 
 TEAM_URL = ROOT + "/mediaPortal/4/programlist.dbml?db_oem_id=10410&cid=34621&tag="
-
-MAXRESULTS = 20
 
 TEAMS = {
     'baylor': 'Baylor',
@@ -92,12 +90,14 @@ def ListTeams():
 
 ####################################################################################################
 @route(PREFIX + '/list-team-videos')
-def ListTeamVideos(team, page="1"):
+def ListTeamVideos(team, page=1):
 
     page_url = TEAM_URL + team
+    page = int(page)
+    if page > 1:
+        page_url += "&pn=" + str(page)
     log("Retrieving %s" % page_url)
 
-    page = int(page)
     oc = ObjectContainer(title1=TEAMS[team], replace_parent=(page > 1))
 
     src = HTML.ElementFromURL(page_url)
@@ -108,8 +108,8 @@ def ListTeamVideos(team, page="1"):
         thumb = item.xpath(".//img/@src")[0]
         div = item.xpath(".//div[@class='media-item-desc']")[0]
         title = div.text
-        id = div.get("id")
-        url = URL + "&ID=" + id
+        vid = div.get("id")
+        url = URL + "&ID=" + vid
 
         oc.add(VideoClipObject(
             url=url,
@@ -117,6 +117,11 @@ def ListTeamVideos(team, page="1"):
             thumb=thumb
         ))
 
+    # next page pn=?
+    pages = src.xpath("//span[@class='pg']")
+    if len(pages) > page:
+        oc.add(NextPageObject(key=Callback(ListTeamVideos, team=team, page=page + 1),
+                              title="More Videos..."))
     return oc
 
 
@@ -134,11 +139,14 @@ def ListSports():
 
 ####################################################################################################
 @route(PREFIX + '/list-sport-videos')
-def ListSportVideos(sport_id, page="1"):
+def ListSportVideos(sport_id, page=1):
 
     page_title = SPORTS[sport_id]
 
-    page_url = URL + "&SPID=" + sport_id + "&PAGE=" + page
+    page_url = URL + "&SPID=" + sport_id
+    page = int(page)
+    if page > 1:
+        page_url += "&PAGE=" + str(page)
     log("Retrieving %s" % page_url)
 
     page = int(page)
