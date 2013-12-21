@@ -32,7 +32,7 @@ SPORTS = {
     "13134": "Men's Basketball",
     "13131": "Baseball",
     "13136": "Soccer",
-    "131355": "Women's Basketball",
+    "13135": "Women's Basketball",
     "13213": "Cross Country",
     "92795": "Equestrian",
     "13217": "Golf",
@@ -177,8 +177,13 @@ def ListSportVideos(sport_id, page="1"):
             thumb=video_thumb
         ))
 
-    if len(hilite) > 1:
-        oc.add(NextPageObject(key=Callback(ListVideos, sport_id=sport_id, page=page + 1), title="More Videos..."))
+    # next page?
+    navs = items[-1].xpath("./a[@class='highlight']")
+    if len(navs) > 0:
+        for nav in navs:
+            if nav.text.strip().find('Next') > -1:
+                oc.add(NextPageObject(key=Callback(ListSportVideos, sport_id=sport_id, page=page + 1),
+                                      title="More Videos..."))
 
     return oc
 
