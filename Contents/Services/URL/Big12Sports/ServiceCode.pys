@@ -2,7 +2,7 @@ from urlparse import urlparse, parse_qs
 import common
 
 INFO_URL = common.ROOT_URL + '/mediaPortal/4/detail.dbml?db_oem_id=10410&path=%s'
-VIDEO_URL = "http://m.big12sports.com/XML/mobile//mediaPortal4/encryptvideopath.dbml?db_oem_id=10410&path=%s&type=vod"
+VIDEO_URL = "http://m.big12sports.com/XML/mobile/encryptvideopath.dbml?db_oem_id=10410&path=%s&type=vod"
 
 
 ####################################################################################################
