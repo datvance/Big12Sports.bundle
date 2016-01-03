@@ -1,0 +1,7 @@
+DEBUG = False
+ROOT_URL = "http://www.big12sports.com/"
+
+
+def log(str):
+    if DEBUG:
+        Log.Debug(str)

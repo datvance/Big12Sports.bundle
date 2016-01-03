@@ -1,33 +1,30 @@
 from urlparse import urlparse, parse_qs
+import common
 
-DEBUG = True
-JSON_URL = "http://m.big12sports.com/XML/mobile/encryptvideopath.dbml?&db_oem_id=10410&path=%s&type=vod"
-
-
-####################################################################################################
-def NormalizeURL(url):
-
-    return url
+INFO_URL = common.ROOT_URL + '/mediaPortal/4/detail.dbml?db_oem_id=10410&path=%s'
+VIDEO_URL = "http://m.big12sports.com/XML/mobile//mediaPortal4/encryptvideopath.dbml?db_oem_id=10410&path=%s&type=vod"
 
 
 ####################################################################################################
 def MetadataObjectForURL(url):
 
-    log('MetadataObjectForURL('+url+')')
+    common.log('MetadataObjectForURL(' + url + ')')
 
-    media_details = GetMediaDetails(url, False)
+    media_details = GetMediaDetails(url)
 
     return VideoClipObject(
                 title=media_details['title'],
                 summary=media_details['summary'],
-                thumb=media_details['thumb']
+                thumb=media_details['thumb'],
+                duration=media_details['duration'],
+                originally_available_at=media_details['date']
         )
 
 
 ####################################################################################################
 def MediaObjectsForURL(url):
 
-    log('MediaObjectsForURL('+url+')')
+    common.log('MediaObjectsForURL(' + url + ')')
 
     return [
             MediaObject(
@@ -40,40 +37,43 @@ def MediaObjectsForURL(url):
     ]
 
 
-
 ####################################################################################################
-def GetMediaDetails(url, src=False):
+def GetMediaDetails(url):
 
     details = {}
 
-    if src:
-        parts = urlparse(url)
-        q = parse_qs(parts[4])
-        video_id = q["ID"][0]
-        json = JSON.ObjectFromURL(JSON_URL % video_id)
+    video_id = GetVideoId(url)
+    json = JSON.ObjectFromURL(INFO_URL % video_id)
 
-        details["src"] = json["path"]
+    details["title"] = json["name"]
+    details["thumb"] = common.ROOT_URL + json["bigImage"]
+    details["summary"] = json["sportname"]
+    details["duration"] = GetMS(json["duration"])
+    details["date"] = Datetime.ParseDate(json["eventDateLocal"]).date()
+    common.log("Details: " + str(details))
 
-    html = HTML.ElementFromURL(url)
-    img = html.xpath("//div[@class='poster']/img")[0]
-    details["title"] = img.get("alt")
-    details["thumb"] = img.get("src")
-    details["summary"] = details["title"]
-
-    log(str(details))
     return details
 
 
 ####################################################################################################
 def PlayVideo(url):
 
-    media_details = GetMediaDetails(url, True)
-    log('Play: %s' % media_details['src'])
+    video_id = GetVideoId(url)
+    json = JSON.ObjectFromURL(VIDEO_URL % video_id)
+    common.log('Play: %s' % json['path'])
 
-    return Redirect(media_details['src'])
+    return Redirect(json['path'])
 
 
 ####################################################################################################
-def log(str):
-    if DEBUG:
-        Log.Debug(str)
+def GetVideoId(url):
+
+    parts = urlparse(url)
+    q = parse_qs(parts[4])
+    return q["id"][0]
+
+
+####################################################################################################
+def GetMS(hms):
+    parts = hms.split(':')
+    return (int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])) * 1000

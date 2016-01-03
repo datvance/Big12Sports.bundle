@@ -1,4 +1,4 @@
-DEBUG = False
+common = SharedCodeService.common
 
 PREFIX = '/video/big12sports'
 NAME = "Big 12 Sports"
@@ -6,26 +6,22 @@ NAME = "Big 12 Sports"
 ART = R('art-default.png')
 ICON = R('icon-default.png')
 
-ROOT = "http://m.big12sports.com"
-URL = ROOT + "/mobile/Video.dbml?db_oem_id=10410"
+RSS_URL = common.ROOT_URL + "/rss.dbml?db_oem_id=10410&RSS_SPORT_ID=%s&media=ondemand"
 
-TEAM_URL = ROOT + "/mediaPortal/4/programlist.dbml?db_oem_id=10410&cid=34621&tag="
-
-TEAMS = {
-    'baylor': 'Baylor',
-    'iowa-state': 'Iowa State',
-    'kansas': 'Kansas',
-    'kansas-state': 'Kansas State',
-    'oklahoma': 'Oklahoma',
-    'oklahoma-state': 'Oklahoma State',
-    'tcu': 'TCU',
-    'texas': 'Texas',
-    'texas-tech': 'Texas Tech',
-    'west-virginia': 'West Virginia',
+RSS_TEAMS_IDS = {
+    '13120': 'Baylor',
+    '13155': 'Iowa State',
+    '13118': 'Kansas',
+    '13116': 'Kansas State',
+    '13121': 'Oklahoma',
+    '13122': 'Oklahoma State',
+    '13117': 'TCU',
+    '13129': 'Texas',
+    '13119': 'Texas Tech',
+    '13151': 'West Virginia',
 }
 
-
-SPORTS = {
+RSS_SPORTS_IDS = {
     "13139": "Football",
     "13134": "Men's Basketball",
     "13131": "Baseball",
@@ -61,7 +57,7 @@ def Start():
 
     # Set the default cache time
     HTTP.CacheTime = CACHE_1HOUR
-    HTTP.Headers['User-Agent'] = "Mozilla/5.0 (iPhone; CPU iPhone OS 5_0 like Mac OS X) AppleWebKit/534.46 (KHTML, like Gecko) Version/5.1 Mobile/9A334 Safari/7534.48.3"
+    HTTP.Headers['User-Agent'] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_8_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/30.0.1599.101 Safari/537.36"
 
 
 ####################################################################################################
@@ -70,133 +66,59 @@ def MainMenu():
 
     oc = ObjectContainer()
 
-    oc.add(DirectoryObject(key=Callback(ListTeams), title='Teams'))
-    oc.add(DirectoryObject(key=Callback(ListSports), title='Sports'))
+    oc.add(DirectoryObject(key=Callback(ListRSSCategories, rss_type="teams"), title='Teams'))
+    oc.add(DirectoryObject(key=Callback(ListRSSCategories, rss_type="sports"), title='Sports'))
 
     return oc
 
 
 ####################################################################################################
-@route(PREFIX + '/list-teams')
-def ListTeams():
+@route(PREFIX + '/list-rss-categories')
+def ListRSSCategories(rss_type):
 
-    oc = ObjectContainer(title1="Teams")
+    oc = ObjectContainer(title1=rss_type.title())
 
-    for team in TEAMS:
-        oc.add(DirectoryObject(key=Callback(ListTeamVideos, team=team), title=TEAMS[team]))
+    if rss_type == "sports":
+        rss_dict = RSS_SPORTS_IDS
+    else:
+        rss_dict = RSS_TEAMS_IDS
+
+    for rss_id in rss_dict:
+        oc.add(DirectoryObject(key=Callback(ListRSSVideos, rss_id=rss_id, name=rss_dict[rss_id]), title=rss_dict[rss_id]))
 
     return oc
 
 
 ####################################################################################################
-@route(PREFIX + '/list-team-videos')
-def ListTeamVideos(team, page=1):
+@route(PREFIX + '/list-rss-videos')
+def ListRSSVideos(rss_id, name):
 
-    page_url = TEAM_URL + team
-    page = int(page)
-    if page > 1:
-        page_url += "&pn=" + str(page)
-    log("Retrieving %s" % page_url)
+    url = RSS_URL % rss_id
+    common.log("Retrieving %s" % url)
 
-    oc = ObjectContainer(title1=TEAMS[team], replace_parent=(page > 1))
+    oc = ObjectContainer(title1=name)
 
-    src = HTML.ElementFromURL(page_url)
-    items = src.xpath("//ul[@class='programlist']/li")
+    rss = XML.ElementFromURL(url)
+    items = rss.xpath("//item")
 
     for item in items:
 
-        thumb = item.xpath(".//img/@src")[0]
-        div = item.xpath(".//div[@class='media-item-desc']")[0]
-        title = div.text
-        vid = div.get("id")
-        url = URL + "&ID=" + vid
+        try:
+            title = item.xpath('./title/text()')[0]
+            url = item.xpath('./link/text()')[0]
+            thumb = item.xpath(".//enclosure/@url")[1]
+            pubDate = item.xpath('./pubDate/text()')[0]
+            pub_date = Datetime.ParseDate(pubDate).date()
+            summary = item.xpath('./category/text()')[0]
 
-        oc.add(VideoClipObject(
-            url=url,
-            title=title,
-            thumb=thumb
-        ))
-
-    # next page pn=?
-    pages = src.xpath("//span[@class='pg']")
-    if len(pages) > page:
-        oc.add(NextPageObject(key=Callback(ListTeamVideos, team=team, page=page + 1),
-                              title="More Videos..."))
-    return oc
-
-
-####################################################################################################
-@route(PREFIX + '/list-sports')
-def ListSports():
-
-    oc = ObjectContainer()
-
-    for sid in SPORTS:
-        oc.add(DirectoryObject(key=Callback(ListSportVideos, sport_id=sid), title=SPORTS[sid]))
+            oc.add(VideoClipObject(
+                url=url,
+                title=title,
+                thumb=thumb,
+                originally_available_at=pub_date,
+                summary=summary
+            ))
+        except Exception:
+            pass
 
     return oc
-
-
-####################################################################################################
-@route(PREFIX + '/list-sport-videos')
-def ListSportVideos(sport_id, page=1):
-
-    page_title = SPORTS[sport_id]
-
-    page_url = URL + "&SPID=" + sport_id
-    page = int(page)
-    if page > 1:
-        page_url += "&PAGE=" + str(page)
-    log("Retrieving %s" % page_url)
-
-    page = int(page)
-    oc = ObjectContainer(title1=page_title, replace_parent=(page > 1))
-
-    src = HTML.ElementFromURL(page_url)
-
-    items = src.xpath("//ul[@class='section-links']/li")
-
-    # first one is different
-    hilite = items[0].xpath("./a[@class='highlight']")
-    video_url = ROOT + hilite[0].get("href")
-    video_title = hilite[0].get("title")
-    video_thumb = ROOT + src.xpath(".//video/@poster")[0]
-
-    oc.add(VideoClipObject(
-        url=video_url,
-        title=video_title,
-        thumb=video_thumb
-    ))
-
-    for item in items[1:]:
-
-        i = item.xpath("./a[@class='thumbnail']")
-
-        if len(i) < 1:
-            continue
-
-        video_url = ROOT + i[0].get("href")
-        video_title = i[0].get("title")
-        video_thumb = ROOT + i[0].xpath(".//div/@style")[0].replace("background-image:url('", "").replace("')", "")
-
-        oc.add(VideoClipObject(
-            url=video_url,
-            title=video_title,
-            thumb=video_thumb
-        ))
-
-    # next page?
-    navs = items[-1].xpath("./a[@class='highlight']")
-    if len(navs) > 0:
-        for nav in navs:
-            if nav.text.strip().find('Next') > -1:
-                oc.add(NextPageObject(key=Callback(ListSportVideos, sport_id=sport_id, page=page + 1),
-                                      title="More Videos..."))
-
-    return oc
-
-
-####################################################################################################
-def log(str):
-    if DEBUG:
-        Log.Debug(str)

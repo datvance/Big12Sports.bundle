@@ -10,7 +10,7 @@
                 <string>com.plexapp.plugins.big12sports</string>
                 <key>URLPatterns</key>
                 <array>
-                    <string>http://m.big12sports.com/mobile/.+</string>
+                    <string>http://www.big12sports.com/mediaPortal/.+</string>
                 </array>
             </dict>
         </dict>
