@@ -1,3 +1,4 @@
+import collections
 common = SharedCodeService.common
 
 PREFIX = '/video/big12sports'
@@ -22,24 +23,25 @@ RSS_TEAMS_IDS = {
 }
 
 RSS_SPORTS_IDS = {
-    "13139": "Football",
-    "13134": "Men's Basketball",
     "13131": "Baseball",
-    "13136": "Soccer",
-    "13135": "Women's Basketball",
+    "13134": "Basketball - Men's",
+    "13135": "Basketball - Women's",
     "13213": "Cross Country",
     "92795": "Equestrian",
+    "13139": "Football",
     "13217": "Golf",
     "13156": "Gymnastics",
     "92796": "Rowing",
+    "13136": "Soccer",
     "13137": "Softball",
     "13128": "Swimming & Diving",
-    "13126": "Men's Tennis",
-    "13132": "Women's Tennis",
+    "13126": "Tennis - Men's",
+    "13132": "Tennis - Women's",
     "13212": "Track & Field",
     "13133": "Volleyball",
     "13153": "Wrestling"
 }
+
 
 ####################################################################################################
 def Start():
@@ -83,8 +85,9 @@ def ListRSSCategories(rss_type):
     else:
         rss_dict = RSS_TEAMS_IDS
 
-    for rss_id in rss_dict:
-        oc.add(DirectoryObject(key=Callback(ListRSSVideos, rss_id=rss_id, name=rss_dict[rss_id]), title=rss_dict[rss_id]))
+    ordered = collections.OrderedDict(sorted(rss_dict.items(), key=lambda t: t[1]))
+    for rss_id, value in ordered.iteritems():
+        oc.add(DirectoryObject(key=Callback(ListRSSVideos, rss_id=rss_id, name=value), title=value))
 
     return oc
 
